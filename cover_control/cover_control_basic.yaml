@@ -141,7 +141,7 @@ action:
             value_template: "{{- is_state('input_boolean.cover_manage_cover_with_sun', 'on') -}}"
           - condition: template
             value_template: >-
-              {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or ) states(light_service) < light_close }}
+              {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or states(light_service) < light_close) }}
           - condition: template
             value_template: "{{ states(var_e) == '1' }}"
 
