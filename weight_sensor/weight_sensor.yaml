@@ -1,0 +1,68 @@
+esphome:
+  name: weight-sensor
+  friendly_name: Weight Sensor
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  level: DEBUG
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ""
+
+ota:
+  password: ""
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: 192.168.0.13
+    gateway: 192.168.0.1
+    subnet: 255.255.255.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Weight Sensor Fallback Hotspot"
+    password: ""
+
+globals:
+  - id: battery_min
+    type: float
+    restore_value: no
+    initial_value: "3.0"
+  - id: battery_max
+    type: float
+          restore_value: no
+    initial_value: "3.6"
+
+deep_sleep:
+  run_duration: 5s
+  sleep_duration: 10min #Change to 86400s for production
+
+sensor:
+  - platform: adc
+    pin: GPIO33
+    id: battery_voltage_adc
+    internal: true
+    accuracy_decimals: 4
+    filters:
+      - multiply: 3.3
+      - calibrate_linear:
+          - 0.98533 -> 1
+          - 3.4881 -> 3.54
+
+  - platform: template
+    id: battery_voltage_percentage
+    name: "esp32.weight_sensor.battery_level"
+    unit_of_measurement: "%"
+    update_interval: 5s
+    lambda: |-
+      float voltage = id(battery_voltage_adc).state;
+      float percentage = 100.0 * (voltage - id(battery_min)) / (id(battery_max) - id(battery_min));
+      return std::min(100.0f, std::max(0.0f, percentage));

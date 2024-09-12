@@ -1,0 +1,145 @@
+blueprint:
+  name: cover_control_dark
+  description: close cover when sun is shining and open when stops
+  domain: automation
+  source_url: https://github.com/alex92ch/smarthome/cover_control/cover_control_dark.yaml
+  input:
+    cover_entity:
+      name: cover
+      selector:
+        # target:
+        entity:
+          domain: cover
+    sun_position_start:
+      name: sun azimuth position start
+      description: Sun azimuth. when sun is below this value, shutter could be triggered
+      default: 89
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: °
+    sun_position_end:
+      name: sun azimuth position end
+      description: Sun azimuth. when sun is over this value, shutter could be triggered
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 360
+          unit_of_measurement: °
+    sun_elevation_start:
+      name: sun elevation to start
+      description: Sun elevation. when sun is over this value, shutter could be triggered
+      default: 32
+      selector:
+        number:
+          min: -100
+          max: 360
+          unit_of_measurement: °
+    temperature:
+      name: Temperature service
+      selector:
+        entity:
+          domain: weather
+    light:
+      name: Light service
+      selector:
+        entity:
+          domain: sensor
+    light_close:
+      name: Light close
+      description: Lux level above which the shutters will close
+      default: 10000
+      selector:
+        number:
+          min: 0
+          max: 20000
+          unit_of_measurement: 'lux'
+    outdoor_temp:
+      name: Outdoor temperature
+      description: Temperature above which the shutters will close
+      default: 16
+      selector:
+        number:
+          min: 0
+          max: 30
+          unit_of_measurement: °C
+
+variables:
+  cover_e: !input cover_entity
+  light_close_threshold: !input light_close
+  var_e: "{{ 'var.' + cover_e[6:] }}"
+  protection_begin: !input sun_position_start
+  protection_end: !input sun_position_end
+  elevation_begin: !input sun_elevation_start
+  outdoor_temp: !input outdoor_temp
+  temperature_service: !input temperature
+  light_service: !input light
+
+mode: parallel
+
+trigger:
+  - platform: time_pattern
+    minutes: '/5'
+
+condition:
+  condition: sun
+  before: sunset
+  after: sunrise
+
+action:
+  - choose:
+      ##########################################################
+      # close cover
+      ##########################################################
+      - conditions:
+          - condition: template
+            value_template: "{{- is_state('input_boolean.cover_manage_cover_with_sun', 'on') -}}"
+          - condition: template
+            value_template: '{{ states(light_service) > light_close }}'
+          - condition: template
+            value_template: "{{ states(var_e) != '1' }}"
+          - condition: template
+            value_template: "{{ state_attr('sun.sun', 'azimuth') > protection_begin and state_attr('sun.sun', 'azimuth') < protection_end and state_attr('sun.sun', 'elevation') > elevation_begin }}"
+          - condition: template
+            value_template: "{{ state_attr(temperature_service, 'temperature') > outdoor_temp }}"
+        sequence:
+          - repeat:
+              sequence:
+                - data_template:
+                    entity_id: '{{ cover_e }}'
+                  service: cover.close_cover
+              until:
+                - condition: template
+                  value_template: "{{ states(cover_e) == 'closed' }}"
+          - data:
+              entity_id: '{{ var_e }}'
+              value: 1
+            service: var.set
+
+      ##########################################################
+      # open cover
+      ##########################################################
+      - conditions:
+          - condition: template
+            value_template: "{{- is_state('input_boolean.cover_manage_cover_with_sun', 'on') -}}"
+          - condition: template
+            value_template: >-
+              {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or ) states(light_service) < light_close }}
+          - condition: template
+            value_template: "{{ states(var_e) == '1' }}"
+
+        sequence:
+          - repeat:
+              sequence:
+                - data_template:
+                    entity_id: '{{ cover_e }}'
+                  service: cover.open_cover
+              until:
+                - condition: template
+                  value_template: "{{ states(cover_e) == 'open' }}"
+          - data:
+              entity_id: '{{ var_e }}'
+              value: 0
+            service: var.set
