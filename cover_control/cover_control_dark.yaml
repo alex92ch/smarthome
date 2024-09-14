@@ -68,7 +68,7 @@ blueprint:
 
 variables:
   cover_e: !input cover_entity
-  light_close_threshold: !input light_close
+  light_close: !input light_close
   var_e: "{{ 'var.' + cover_e[6:] }}"
   protection_begin: !input sun_position_start
   protection_end: !input sun_position_end
