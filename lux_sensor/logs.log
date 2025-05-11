@@ -1,0 +1,83 @@
+[15:00:31][I][app:100]: ESPHome version 2025.4.1 compiled on May 11 2025, 14:59:47
+[15:00:31][C][wifi:600]: WiFi:
+[15:00:31][C][wifi:428]:   Local MAC: C4:4F:33:D2:89:66
+[15:00:31][C][wifi:433]:   SSID: '404'
+[15:00:31][C][wifi:436]:   IP Address: 10.0.0.88
+[15:00:31][C][wifi:439]:   BSSID: B2:8B:A9:91:EE:25
+[15:00:31][C][wifi:441]:   Hostname: 'cover-lux-sensor'
+[15:00:31][C][wifi:443]:   Signal strength: -64 dB ▂▄▆█
+[15:00:31][C][wifi:447]:   Channel: 1
+[15:00:31][C][wifi:448]:   Subnet: 255.255.255.0
+[15:00:31][C][wifi:449]:   Gateway: 10.0.0.1
+[15:00:31][C][wifi:450]:   DNS1: 10.0.0.1
+[15:00:31][C][wifi:451]:   DNS2: 0.0.0.0
+[15:00:31][C][logger:177]: Logger:
+[15:00:31][C][logger:178]:   Max Level: DEBUG
+[15:00:31][C][logger:179]:   Initial Level: DEBUG
+[15:00:31][C][logger:181]:   Log Baud Rate: 115200
+[15:00:31][C][logger:182]:   Hardware UART: UART0
+[15:00:31][C][i2c.arduino:071]: I2C Bus:
+[15:00:31][C][i2c.arduino:072]:   SDA Pin: GPIO5
+[15:00:31][C][i2c.arduino:073]:   SCL Pin: GPIO4
+[15:00:31][C][i2c.arduino:074]:   Frequency: 50000 Hz
+[15:00:31][C][i2c.arduino:086]:   Recovery: bus successfully recovered
+[15:00:31][C][template.sensor:022]: Template Sensor 'Batterieladung'
+[15:00:31][C][template.sensor:022]:   State Class: ''
+[15:00:31][C][template.sensor:022]:   Unit of Measurement: '%'
+[15:00:31][C][template.sensor:022]:   Accuracy Decimals: 1
+[15:00:31][C][template.sensor:023]:   Update Interval: 60.0s
+[15:00:31][C][bh1750.sensor:118]: BH1750 'Lichtstärke'
+[15:00:31][C][bh1750.sensor:118]:   Device Class: 'illuminance'
+[15:00:31][C][bh1750.sensor:118]:   State Class: 'measurement'
+[15:00:31][C][bh1750.sensor:118]:   Unit of Measurement: 'lx'
+[15:00:31][C][bh1750.sensor:118]:   Accuracy Decimals: 1
+[15:00:31][C][bh1750.sensor:119]:   Address: 0x23
+[15:00:31][C][bh1750.sensor:124]:   Update Interval: 60.0s
+[15:00:31][C][adc.esp8266:027]: ADC Sensor 'Batteriespannung'
+[15:00:31][C][adc.esp8266:027]:   Device Class: 'voltage'
+[15:00:31][C][adc.esp8266:027]:   State Class: 'measurement'
+[15:00:31][C][adc.esp8266:027]:   Unit of Measurement: 'V'
+[15:00:31][C][adc.esp8266:027]:   Accuracy Decimals: 2
+[15:00:31][C][adc.esp8266:031]:   Pin: GPIO17
+[15:00:31][C][adc.esp8266:033]:   Samples: 1
+[15:00:31][C][adc.esp8266:034]:   Sampling mode: average
+[15:00:31][C][adc.esp8266:035]:   Update Interval: 60.0s
+[15:00:31][C][homeassistant.time:010]: Home Assistant Time:
+[15:00:31][C][homeassistant.time:011]:   Timezone: 'CET-1CEST,M3.5.0,M10.5.0/3'
+[15:00:31][C][mdns:116]: mDNS:
+[15:00:31][C][mdns:117]:   Hostname: cover-lux-sensor
+[15:00:31][C][esphome.ota:073]: Over-The-Air updates:
+[15:00:31][C][esphome.ota:074]:   Address: cover-lux-sensor.local:8266
+[15:00:31][C][esphome.ota:075]:   Version: 2
+[15:00:31][C][esphome.ota:078]:   Password configured
+[15:00:31][C][safe_mode:018]: Safe Mode:
+[15:00:31][C][safe_mode:019]:   Boot considered successful after 60 seconds
+[15:00:31][C][safe_mode:021]:   Invoke after 10 boot attempts
+[15:00:31][C][safe_mode:022]:   Remain in safe mode for 300 seconds
+[15:00:31][C][api:140]: API Server:
+[15:00:31][C][api:141]:   Address: cover-lux-sensor.local:6053
+[15:00:31][C][api:143]:   Using noise encryption: YES
+[15:00:31][C][deep_sleep:026]: Setting up Deep Sleep...
+[15:00:31][C][deep_sleep:029]:   Sleep Duration: 1800000 ms
+[15:00:33][D][api:103]: Accepted 10.0.0.73
+[15:00:33][W][component:239]: Component api took a long time for an operation (289 ms).
+[15:00:33][W][component:240]: Components should block for at most 30 ms.
+[15:00:34][D][api.connection:1801]: Home Assistant 2025.5.1 (10.0.0.73): Connected successfully
+[15:00:34][D][time:046]: Synchronized time: 2025-05-11 15:00:34
+[15:00:42][D][sensor:093]: 'Batteriespannung': Sending state 3.50156 V with 2 decimals of accuracy
+[15:00:47][D][sensor:093]: 'Batterieladung': Sending state 38.76008 % with 1 decimals of accuracy
+[15:00:47][D][sensor:093]: 'Batteriespannung': Sending state 3.50156 V with 2 decimals of accuracy
+[15:00:47][D][bh1750.sensor:159]: 'Lichtstärke': Got illuminance=2533.3lx
+[15:00:47][D][sensor:093]: 'Lichtstärke': Sending state 2533.28223 lx with 1 decimals of accuracy
+[15:00:48][I][script:076]: Warte auf gültige Sensorwerte...
+[15:00:48][I][script:085]: Sensorwerte sind gültig.
+[15:00:48][I][script:088]: Warte auf gültige Uhrzeit...
+[15:00:48][I][script:099]: Uhrzeit gültig - fahre fort.
+[15:00:49][D][bh1750.sensor:159]: 'Lichtstärke': Got illuminance=2533.3lx
+[15:00:49][D][sensor:093]: 'Lichtstärke': Sending state 2533.28223 lx with 1 decimals of accuracy
+[15:00:49][D][script:103]: Lichtsensor: 2533.3 lx
+[15:00:49][D][script:104]: Batteriespannung: 3.50 V
+[15:00:49][D][script:106]: Aktuelle Uhrzeit: 15:00
+[15:00:49][I][script:111]: Tagmodus - 30 Minuten schlafen.
+[15:00:49][I][deep_sleep:060]: Beginning Deep Sleep
+[15:00:49][I][deep_sleep:062]: Sleeping for 1800000000us

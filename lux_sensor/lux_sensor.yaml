@@ -3,26 +3,11 @@ esphome:
   on_boot:
     priority: -100.0
     then:
-      - component.update: lichtsensor
-      - component.update: battery_voltage
-      # - if:
-      #     condition:
-      #       lambda: |-
-      #         auto time = id(esptime).now();
-      #         return time.is_valid() && (time.hour >= 22 || time.hour < 6);
-      #     then:
-      #     - lambda: |-
-      #         id(deep_sleep_control).set_sleep_duration(28800000);
-      #     else:
-      #     - lambda: |-
-      #         id(deep_sleep_control).set_sleep_duration(1800000);
-      # - deep_sleep.enter:
-      #     id: deep_sleep_control  
+      - script.execute: handle_sleep
 
 esp8266:
   board: d1_mini_lite
 
-# OTA bleibt aktiv für Updates
 ota:
   platform: esphome
   password: !secret wifi_password
@@ -31,13 +16,15 @@ api:
   encryption:
     key: !secret api_key
 
+# logger:
+#   level: DEBUG
+
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   fast_connect: true
   reboot_timeout: 0s
 
-# I²C-Schnittstelle
 i2c:
   sda: D1
   scl: D2
@@ -46,25 +33,19 @@ i2c:
 sensor:
   - platform: bh1750
     name: "Lichtstärke"
-    # update_interval: 1s
     address: 0x23
-    on_value:
-      then:
-        - script.execute: handle_sleep
     id: lichtsensor
 
   - platform: adc
     pin: A0
     name: "Batteriespannung"
     id: battery_voltage
-    # update_interval: 1s
     filters:
       - multiply: 5.4
     unit_of_measurement: "V"
 
   - platform: template
     name: "Batterieladung"
-    # update_interval: 1s
     unit_of_measurement: "%"
     lambda: |-
       float voltage = id(battery_voltage).state;
@@ -81,19 +62,53 @@ time:
 
 deep_sleep:
   id: deep_sleep_control
+  sleep_duration: 30min  # Fallback falls kein Script läuft
 
 script:
   - id: handle_sleep
     then:
-      - delay: 19s
+      - lambda: 'ESP_LOGI("script", "handle_sleep gestartet");'
+      - component.update: lichtsensor
+      - delay: 500ms
+      - component.update: battery_voltage
+      - delay: 500ms
+      - lambda: 'ESP_LOGI("script", "Warte auf gültige Sensorwerte...");'
+      - wait_until:
+          condition:
+            lambda: return id(battery_voltage).has_state() && id(lichtsensor).has_state();
+          timeout: 10s
       - lambda: |-
-          auto time = id(esptime).now();
-          if (time.is_valid() && (time.hour >= 22 || time.hour < 6)) {
-            id(deep_sleep_control).set_sleep_duration(28800000);  // 8h
+          if (!(id(battery_voltage).has_state() && id(lichtsensor).has_state())) {
+            ESP_LOGW("script", "Sensorwerte ungültig nach Timeout - fahre trotzdem fort.");
           } else {
-            id(deep_sleep_control).set_sleep_duration(1800000);   // 30min
+            ESP_LOGI("script", "Sensorwerte sind gültig.");
+          }
+
+      - lambda: 'ESP_LOGI("script", "Warte auf gültige Uhrzeit...");'
+      - wait_until:
+          condition:
+            lambda: return id(esptime).now().is_valid();
+          timeout: 10s
+      - lambda: |-
+          if (!(id(esptime).now().is_valid())) {
+            ESP_LOGW("script", "Uhrzeit ungültig nach Timeout - setze 30min als Fallback.");
+            id(deep_sleep_control).set_sleep_duration(1800000);
+            return;
+          } else {
+            ESP_LOGI("script", "Uhrzeit gültig - fahre fort.");
+          }
+      - delay: 1s
+      - lambda: |-
+          ESP_LOGD("script", "Lichtsensor: %.1f lx", id(lichtsensor).state);
+          ESP_LOGD("script", "Batteriespannung: %.2f V", id(battery_voltage).state);
+          auto time = id(esptime).now();
+          ESP_LOGD("script", "Aktuelle Uhrzeit: %02d:%02d", time.hour, time.minute);
+          if (time.hour >= 22 || time.hour < 6) {
+            ESP_LOGI("script", "Nachtmodus erkannt - 8 Stunden schlafen.");
+            id(deep_sleep_control).set_sleep_duration(28800000);  // 8h in ms
+          } else {
+            ESP_LOGI("script", "Tagmodus - 30 Minuten schlafen.");
+            id(deep_sleep_control).set_sleep_duration(1800000);   // 30min in ms
           }
       - deep_sleep.enter:
           id: deep_sleep_control
-
-# logger:
