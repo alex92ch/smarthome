@@ -73,15 +73,15 @@ script:
       - delay: 500ms
       - component.update: battery_voltage
       - delay: 500ms
-      - component.update: battery_percentage
+    
       - delay: 500ms
       - lambda: 'ESP_LOGI("script", "Warte auf gültige Sensorwerte...");'
       - wait_until:
           condition:
-            lambda: return id(battery_voltage).has_state() && id(lichtsensor).has_state() && id(battery_percentage).has_state();
+            lambda: return id(battery_voltage).has_state() && id(lichtsensor).has_state();
           timeout: 10s
       - lambda: |-
-          if (!(id(battery_voltage).has_state() && id(lichtsensor).has_state() && id(battery_percentage).has_state())) {
+          if (!(id(battery_voltage).has_state() && id(lichtsensor).has_state())) {
             ESP_LOGW("script", "Sensorwerte ungültig nach Timeout - fahre trotzdem fort.");
           } else {
             ESP_LOGI("script", "Sensorwerte sind gültig.");
@@ -100,6 +100,7 @@ script:
           } else {
             ESP_LOGI("script", "Uhrzeit gültig - fahre fort.");
           }
+      - lambda: 'id(battery_percentage).update();'
       - delay: 1s
       - lambda: |-
           ESP_LOGD("script", "Lichtsensor: %.1f lx", id(lichtsensor).state);
