@@ -42,20 +42,20 @@ blueprint:
       selector:
         entity:
           domain: weather
-    light:
-      name: Light service
-      selector:
-        entity:
-          domain: sensor
-    light_close:
-      name: Light close
-      description: Lux level above which the shutters will close
-      default: 10000
-      selector:
-        number:
-          min: 0
-          max: 20000
-          unit_of_measurement: 'lux'
+    # light:
+    #   name: Light service
+    #   selector:
+    #     entity:
+    #       domain: sensor
+    # light_close:
+    #   name: Light close
+    #   description: Lux level above which the shutters will close
+    #   default: 10000
+    #   selector:
+    #     number:
+    #       min: 0
+    #       max: 20000
+    #       unit_of_measurement: 'lux'
     outdoor_temp:
       name: Outdoor temperature
       description: Temperature above which the shutters will close
@@ -67,14 +67,14 @@ blueprint:
           unit_of_measurement: °C
 variables:
   cover_e: !input cover_entity
-  light_close: !input light_close
+  # light_close: !input light_close
   var_e: "{{ 'var.' + cover_e[6:] }}"
   protection_begin: !input sun_position_start
   protection_end: !input sun_position_end
   elevation_begin: !input sun_elevation_start
   outdoor_temp: !input outdoor_temp
   temperature_service: !input temperature
-  light_service: !input light
+  # light_service: !input light
 
 mode: parallel
 
@@ -100,7 +100,9 @@ action:
           - condition: or
             conditions:
               - condition: template
-                value_template: "{{ state_attr('sun.sun', 'azimuth') > protection_begin and state_attr('sun.sun', 'azimuth') < protection_end and state_attr('sun.sun', 'elevation') > elevation_begin and states(light_service) | int > light_close }}"
+                value_template: "{{ state_attr('sun.sun', 'azimuth') > protection_begin and state_attr('sun.sun', 'azimuth') < protection_end and state_attr('sun.sun', 'elevation') > elevation_begin }}"
+              # - condition: template
+              #   value_template: "{{ state_attr('sun.sun', 'azimuth') > protection_begin and state_attr('sun.sun', 'azimuth') < protection_end and state_attr('sun.sun', 'elevation') > elevation_begin and states(light_service) | int > light_close }}"
               - condition: time
                 after: '20:00:00'
                 before: '11:00:00'
@@ -139,8 +141,10 @@ action:
           - condition: and
             conditions:
               - condition: template
+                # value_template: >-
+                #   {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or states(light_service) | int < light_close) }}
                 value_template: >-
-                  {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or states(light_service) | int < light_close) }}
+                  {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin) }}
               - condition: time
                 after: '11:00:00'
                 before: '20:00:00'

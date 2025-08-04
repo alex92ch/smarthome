@@ -42,20 +42,20 @@ blueprint:
       selector:
         entity:
           domain: weather
-    light:
-      name: Light service
-      selector:
-        entity:
-          domain: sensor
-    light_close:
-      name: Light close
-      description: Lux level above which the shutters will close
-      default: 10000
-      selector:
-        number:
-          min: 0
-          max: 20000
-          unit_of_measurement: 'lux'
+    # light:
+    #   name: Light service
+    #   selector:
+    #     entity:
+    #       domain: sensor
+    # light_close:
+    #   name: Light close
+    #   description: Lux level above which the shutters will close
+    #   default: 10000
+    #   selector:
+    #     number:
+    #       min: 0
+    #       max: 20000
+    #       unit_of_measurement: 'lux'
     outdoor_temp:
       name: Outdoor temperature
       description: Temperature above which the shutters will close
@@ -68,14 +68,14 @@ blueprint:
 
 variables:
   cover_e: !input cover_entity
-  light_close: !input light_close
+  # light_close: !input light_close
   var_e: "{{ 'var.' + cover_e[6:] }}"
   protection_begin: !input sun_position_start
   protection_end: !input sun_position_end
   elevation_begin: !input sun_elevation_start
   outdoor_temp: !input outdoor_temp
   temperature_service: !input temperature
-  light_service: !input light
+  # light_service: !input light
 
 mode: parallel
 
@@ -96,8 +96,8 @@ action:
       - conditions:
           - condition: template
             value_template: "{{- is_state('input_boolean.cover_manage_cover_with_sun', 'on') -}}"
-          - condition: template
-            value_template: '{{ states(light_service) | int > light_close }}'
+          # - condition: template
+          #   value_template: '{{ states(light_service) | int > light_close }}'
           - condition: template
             value_template: "{{ states(var_e) != '1' }}"
           - condition: template
@@ -126,7 +126,9 @@ action:
             value_template: "{{- is_state('input_boolean.cover_manage_cover_with_sun', 'on') -}}"
           - condition: template
             value_template: >-
-              {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or states(light_service) | int < light_close) }}
+              {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin) }}
+            # value_template: >-
+            #   {{ (state_attr('sun.sun', 'azimuth') < protection_begin or state_attr('sun.sun', 'azimuth') > protection_end or state_attr('sun.sun', 'elevation') < elevation_begin or states(light_service) | int < light_close) }}
           - condition: template
             value_template: "{{ states(var_e) == '1' }}"
 
