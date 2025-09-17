@@ -99,13 +99,19 @@ action:
             value_template: "{{ states(var_e) != '1' }}"
           - condition: or
             conditions:
+              # Sonne-Bedingung
               - condition: template
-                value_template: "{{ state_attr('sun.sun', 'azimuth') > protection_begin and state_attr('sun.sun', 'azimuth') < protection_end and state_attr('sun.sun', 'elevation') > elevation_begin }}"
-              # - condition: template
-              #   value_template: "{{ state_attr('sun.sun', 'azimuth') > protection_begin and state_attr('sun.sun', 'azimuth') < protection_end and state_attr('sun.sun', 'elevation') > elevation_begin and states(light_service) | int > light_close }}"
-              - condition: time
-                after: '20:00:00'
-                before: '11:00:00'
+                value_template: >
+                  {{ state_attr('sun.sun', 'azimuth') > protection_begin
+                    and state_attr('sun.sun', 'azimuth') < protection_end
+                    and state_attr('sun.sun', 'elevation') > elevation_begin }}
+              # Zeitbedingung: Abends + Nacht bis 11 Uhr
+              - condition: or
+                conditions:
+                  - condition: time
+                    after: '20:00:00'
+                  - condition: time
+                    before: '11:00:00'
           - condition: template
             value_template: "{{ state_attr(temperature_service, 'temperature') > outdoor_temp }}"
         sequence:
