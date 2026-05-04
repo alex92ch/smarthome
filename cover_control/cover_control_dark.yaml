@@ -105,14 +105,14 @@ action:
           - condition: template
             value_template: "{{ state_attr(temperature_service, 'temperature') > outdoor_temp }}"
         sequence:
-          - repeat:
-              sequence:
-                - data_template:
-                    entity_id: '{{ cover_e }}'
-                  service: cover.close_cover
-              until:
-                - condition: template
-                  value_template: "{{ states(cover_e) == 'closed' }}"
+          - service: cover.close_cover
+            data_template:
+              entity_id: '{{ cover_e }}'
+          - wait_template: "{{ states(cover_e) not in ['opening', 'closing'] }}"
+            timeout: "00:10:00"
+            continue_on_timeout: true
+          - condition: template
+            value_template: "{{ states(cover_e) == 'closed' }}"
           - data:
               entity_id: '{{ var_e }}'
               value: 1
@@ -133,14 +133,14 @@ action:
             value_template: "{{ states(var_e) == '1' }}"
 
         sequence:
-          - repeat:
-              sequence:
-                - data_template:
-                    entity_id: '{{ cover_e }}'
-                  service: cover.open_cover
-              until:
-                - condition: template
-                  value_template: "{{ states(cover_e) == 'open' }}"
+          - service: cover.open_cover
+            data_template:
+              entity_id: '{{ cover_e }}'
+          - wait_template: "{{ states(cover_e) not in ['opening', 'closing'] }}"
+            timeout: "00:10:00"
+            continue_on_timeout: true
+          - condition: template
+            value_template: "{{ states(cover_e) == 'open' }}"
           - data:
               entity_id: '{{ var_e }}'
               value: 0
