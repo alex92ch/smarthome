@@ -171,21 +171,23 @@ action:
           - wait_template: "{{ states(cover_e) not in ['opening', 'closing'] }}"
             timeout: "00:10:00"
             continue_on_timeout: true
+          # Settle delay: lets the integration finalize state/position attributes
+          # after the motor stops, before we evaluate the vent gate.
+          - delay:
+              seconds: 2
           # Vent step: only if enabled AND shutter actually fully closed (not interrupted)
           - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ enable_vent_position }}"
                   - condition: template
-                    value_template: "{{ state_attr(cover_e, 'current_position') | int(default=100) <= 2 }}"
+                    value_template: "{{ states(cover_e) == 'closed' }}"
                 sequence:
-                  - delay:
-                      seconds: 2
                   - service: cover.set_cover_position
                     target:
                       entity_id: '{{ cover_e }}'
                     data:
-                      position: '{{ vent_position }}'
+                      position: "{{ vent_position | int }}"
 
       ##########################################################
       # close cover - cold mode (night insulation)
