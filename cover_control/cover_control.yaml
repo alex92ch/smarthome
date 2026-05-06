@@ -3,15 +3,20 @@ blueprint:
   description: |
     Unified cover control automation.
 
-    - Hot mode (heat protection): closes the shutter when the sun hits the window
-      AND the outdoor temperature is above hot_threshold. Optional vent position
-      lifts the shutter by a small amount after closing to open the inter-slat
-      slits (for plant rooms). Optional bedtime window forces close during the
-      configured night-time window (for bedrooms).
-    - Cold mode (night insulation): closes the shutter at night when the outdoor
-      temperature is below cold_threshold. Always fully closes (no vent step).
-      For bedrooms it stays closed until bedtime_open_at instead of sunrise so
-      the motor doesn't run before wake time.
+    Three independent close modes, plus an open mode that releases the shutter
+    only when no close mode applies.
+
+    - Hot mode (heat protection, var=1): closes when sun hits the window AND
+      outdoor temperature is above hot_threshold. Optional vent position lifts
+      the shutter slightly afterwards to open the inter-slat slits (plant rooms).
+    - Bedtime mode (bedrooms, var=3): closes fully (pos 0) during the configured
+      bedtime window REGARDLESS of temperature or sun. Use case: bedrooms that
+      should be dark from bedtime_close_at to bedtime_open_at no matter the
+      weather (prevents being woken in summer by a morning hot-mode close, and
+      keeps heat in during winter nights). Bedtime overrides hot/cold: the hot
+      and cold branches are blocked while the bedtime window is active.
+    - Cold mode (night insulation, var=2): closes fully at night when outdoor
+      temperature is below cold_threshold. No vent step.
 
     Manual interrupts (stop / reverse mid-move) are respected: var is set
     BEFORE the motor command and the vent step is gated on the actual final
@@ -61,8 +66,8 @@ blueprint:
 
     hot_threshold:
       name: Hot threshold
-      description: Outdoor temperature above which heat-protection close is active
-      default: 20
+      description: Outdoor temperature above which heat-protection close is active. Default 10 °C because direct sun warms the room well before air temperature climbs.
+      default: 10
       selector:
         number:
           min: 0
@@ -96,19 +101,19 @@ blueprint:
 
     enable_bedtime_close:
       name: Enable bedtime close (bedrooms)
-      description: Force shutter closed during the bedtime window in hot mode and delay cold-mode opening to bedtime_open_at
+      description: Force shutter fully closed during the bedtime window regardless of temperature or sun. Overrides hot and cold modes.
       default: false
       selector:
         boolean:
     bedtime_close_at:
       name: Bedtime close time
-      description: Start of the bedtime close window (used in hot mode)
+      description: Start of the bedtime close window
       default: "20:00:00"
       selector:
         time:
     bedtime_open_at:
       name: Bedtime open time
-      description: End of the bedtime close window. Also the morning open time in cold mode for bedrooms.
+      description: End of the bedtime close window
       default: "11:00:00"
       selector:
         time:
@@ -138,6 +143,7 @@ action:
   - choose:
       ##########################################################
       # close cover - hot mode (heat protection)
+      # Skipped while bedtime is active so it can't override bedtime's full close.
       ##########################################################
       - conditions:
           - condition: template
@@ -145,20 +151,17 @@ action:
           - condition: template
             value_template: "{{ states(var_e) | int(default=0) != 1 }}"
           - condition: template
+            value_template: >
+              {% set t = now().strftime('%H:%M:%S') %}
+              {% set bedtime_active = enable_bedtime_close and (t >= bedtime_close_at or t < bedtime_open_at) %}
+              {{ not bedtime_active }}
+          - condition: template
             value_template: "{{ state_attr(temperature_service, 'temperature') | float(default=15) > hot_threshold }}"
-          - condition: or
-            conditions:
-              # Direct sun on the window
-              - condition: template
-                value_template: >
-                  {{ state_attr('sun.sun', 'azimuth') > protection_begin
-                    and state_attr('sun.sun', 'azimuth') < protection_end
-                    and state_attr('sun.sun', 'elevation') > elevation_begin }}
-              # Bedroom bedtime window (overnight wrap)
-              - condition: template
-                value_template: >
-                  {% set t = now().strftime('%H:%M:%S') %}
-                  {{ enable_bedtime_close and (t >= bedtime_close_at or t < bedtime_open_at) }}
+          - condition: template
+            value_template: >
+              {{ state_attr('sun.sun', 'azimuth') > protection_begin
+                and state_attr('sun.sun', 'azimuth') < protection_end
+                and state_attr('sun.sun', 'elevation') > elevation_begin }}
         sequence:
           # Mark engaged FIRST so a manual interrupt is preserved across ticks
           - service: var.set
@@ -172,16 +175,23 @@ action:
             timeout: "00:10:00"
             continue_on_timeout: true
           # Settle delay: lets the integration finalize state/position attributes
-          # after the motor stops, before we evaluate the vent gate.
+          # after the motor stops, before we evaluate the vent gate. Some covers
+          # (Shelly) take a few seconds to push the final state/position update
+          # to HA after the motor stops.
           - delay:
-              seconds: 2
-          # Vent step: only if enabled AND shutter actually fully closed (not interrupted)
+              seconds: 5
+          # Vent step: only if enabled AND shutter actually reached fully closed
+          # (not manually interrupted). Gate accepts EITHER state == 'closed'
+          # OR current_position == 0 because some integrations report state
+          # 'open' transiently even when position has reached 0.
           - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ enable_vent_position }}"
                   - condition: template
-                    value_template: "{{ states(cover_e) == 'closed' }}"
+                    value_template: >
+                      {{ states(cover_e) == 'closed'
+                         or (state_attr(cover_e, 'current_position') | int(default=100)) == 0 }}
                 sequence:
                   - service: cover.set_cover_position
                     target:
@@ -190,7 +200,38 @@ action:
                       position: "{{ vent_position | int }}"
 
       ##########################################################
+      # close cover - bedtime mode (bedrooms)
+      # Independent of temperature and sun. Fully closes (no vent step).
+      # Wins over hot/cold (they're guarded), so bedtime is the final state
+      # for the entire bedtime window even if the shutter was previously
+      # vented (var=1) or cold-closed (var=2).
+      ##########################################################
+      - conditions:
+          - condition: template
+            value_template: "{{ is_state('input_boolean.cover_manage_cover_with_sun', 'on') }}"
+          - condition: template
+            value_template: "{{ enable_bedtime_close }}"
+          - condition: template
+            value_template: "{{ states(var_e) | int(default=0) != 3 }}"
+          - condition: template
+            value_template: >
+              {% set t = now().strftime('%H:%M:%S') %}
+              {{ t >= bedtime_close_at or t < bedtime_open_at }}
+        sequence:
+          - service: var.set
+            data:
+              entity_id: '{{ var_e }}'
+              value: 3
+          - service: cover.close_cover
+            data:
+              entity_id: '{{ cover_e }}'
+          - wait_template: "{{ states(cover_e) not in ['opening', 'closing'] }}"
+            timeout: "00:10:00"
+            continue_on_timeout: true
+
+      ##########################################################
       # close cover - cold mode (night insulation)
+      # Skipped while bedtime is active (bedtime already keeps it closed).
       ##########################################################
       - conditions:
           - condition: template
@@ -198,14 +239,15 @@ action:
           - condition: template
             value_template: "{{ states(var_e) | int(default=0) != 2 }}"
           - condition: template
-            value_template: "{{ state_attr(temperature_service, 'temperature') | float(default=15) < cold_threshold }}"
-          # Close window: night for everyone, plus pre-bedtime_open_at morning for bedrooms
-          - condition: template
             value_template: >
               {% set t = now().strftime('%H:%M:%S') %}
-              {% set is_night = is_state('sun.sun', 'below_horizon') %}
-              {% set bedroom_morning = enable_bedtime_close and (t < bedtime_open_at) %}
-              {{ is_night or bedroom_morning }}
+              {% set bedtime_active = enable_bedtime_close and (t >= bedtime_close_at or t < bedtime_open_at) %}
+              {{ not bedtime_active }}
+          - condition: template
+            value_template: "{{ state_attr(temperature_service, 'temperature') | float(default=15) < cold_threshold }}"
+          - condition: state
+            entity_id: sun.sun
+            state: below_horizon
         sequence:
           - service: var.set
             data:
@@ -220,13 +262,13 @@ action:
 
       ##########################################################
       # open cover
+      # Only releases when NONE of the three close modes applies.
       ##########################################################
       - conditions:
           - condition: template
             value_template: "{{ is_state('input_boolean.cover_manage_cover_with_sun', 'on') }}"
           - condition: template
             value_template: "{{ states(var_e) | int(default=0) > 0 }}"
-          # Only open if NEITHER hot-close nor cold-close conditions still apply
           - condition: template
             value_template: >
               {% set temp = state_attr(temperature_service, 'temperature') | float(default=15) %}
@@ -237,11 +279,10 @@ action:
                   and state_attr('sun.sun', 'elevation') > elevation_begin %}
               {% set t = now().strftime('%H:%M:%S') %}
               {% set bedtime_active = enable_bedtime_close and (t >= bedtime_close_at or t < bedtime_open_at) %}
-              {% set hot_close = is_hot and (sun_hit or bedtime_active) %}
               {% set is_night = is_state('sun.sun', 'below_horizon') %}
-              {% set bedroom_morning = enable_bedtime_close and (t < bedtime_open_at) %}
-              {% set cold_close = is_cold and (is_night or bedroom_morning) %}
-              {{ not hot_close and not cold_close }}
+              {% set hot_close = is_hot and sun_hit %}
+              {% set cold_close = is_cold and is_night %}
+              {{ not hot_close and not bedtime_active and not cold_close }}
         sequence:
           # Mark released FIRST so a manual interrupt is preserved across ticks
           - service: var.set
