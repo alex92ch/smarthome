@@ -1,0 +1,116 @@
+###############################################################################
+# tv_setup — Living room cover + scene management tied to the LG TV.
+#
+# tv_setup_on  : closes the living room covers and sets the scene when TV
+#                turns on. Also sets var=4 (external lock) on the two covers
+#                so the cover_control blueprint does not re-open them while
+#                watching TV.
+#
+# tv_setup_off : resets the scene and releases the covers back to blueprint
+#                management (var=0). The blueprint then decides on the next
+#                5-minute tick whether to re-close or leave them open.
+#
+# Entity IDs to verify before deploying:
+#   - media_player entity  : adjust if HA assigned a different ID to the TV
+#   - switch.flur_night_mode: verify in Developer Tools → States (search "night")
+#   - switch.shelly1minig4_ccba97c02d40: verify in Developer Tools → States
+###############################################################################
+
+- id: tv_setup_on
+  alias: tv_setup_on
+  description: Close living room covers and set TV scene when TV turns on
+  trigger:
+    # "Device is requested to turn on" (webOS wake-on-LAN / turn-on request)
+    - platform: state
+      entity_id: media_player.lg_webos_tv_oled77c27la
+      to: "on"
+    # TV fully on
+    - platform: state
+      entity_id: media_player.lg_webos_tv_oled77c27la
+      to: "playing"
+    - platform: state
+      entity_id: media_player.lg_webos_tv_oled77c27la
+      to: "paused"
+  condition:
+    # Only run once per TV session (guard against re-triggering mid-session)
+    - condition: state
+      entity_id: var.tv_setup
+      state: "0"
+    # Only between 08:00 and midnight
+    - condition: time
+      after: "08:00:00"
+      before: "00:00:00"
+  action:
+    # Lock the two living room covers from blueprint management (var=4).
+    # The cover_control blueprint skips ALL branches while var=4 so it will
+    # not re-open them during the movie.
+    - service: var.set
+      data:
+        entity_id: var.shellyplus2pm_80646fc86d00
+        value: 4
+    - service: var.set
+      data:
+        entity_id: var.shellyplus2pm_80646fdc35a0
+        value: 4
+
+    # Close the living room covers
+    - service: cover.close_cover
+      target:
+        entity_id: cover.shellyplus2pm_80646fc86d00
+    - service: cover.close_cover
+      target:
+        entity_id: cover.shellyplus2pm_80646fdc35a0
+
+    # Turn off the ambient socket / plug near the TV
+    # Verify entity ID: switch.shelly1minig4_ccba97c02d40 in Developer Tools → States
+    - service: switch.turn_off
+      target:
+        entity_id: switch.shelly1minig4_ccba97c02d40
+
+    # Turn on the secondary light (Light2)
+    - service: switch.turn_on
+      target:
+        entity_id: switch.shellyplus1_a8032ab68f68_switch_0
+
+    # Enable Dyson night mode (quiet fan during TV time)
+    # Verify entity ID: search "night_mode" in Developer Tools → States
+    - service: switch.turn_on
+      target:
+        entity_id: switch.flur_night_mode
+
+    # Mark TV session as active — prevents this automation from re-running
+    # if a second trigger fires (e.g. TV switches from "on" to "playing")
+    - service: var.set
+      data:
+        entity_id: var.tv_setup
+        value: 1
+
+- id: tv_setup_off
+  alias: tv_setup_off
+  description: Release living room covers back to blueprint management when TV turns off
+  trigger:
+    - platform: state
+      entity_id: media_player.lg_webos_tv_oled77c27la
+      to: "off"
+    - platform: state
+      entity_id: media_player.lg_webos_tv_oled77c27la
+      to: "standby"
+  action:
+    # Release the covers back to cover_control blueprint management.
+    # Setting var=0 does NOT open them immediately — the blueprint evaluates
+    # conditions on the next 5-minute tick and decides whether to close again
+    # (cold/hot) or leave them as-is.
+    - service: var.set
+      data:
+        entity_id: var.shellyplus2pm_80646fc86d00
+        value: 0
+    - service: var.set
+      data:
+        entity_id: var.shellyplus2pm_80646fdc35a0
+        value: 0
+
+    # Mark TV session as inactive
+    - service: var.set
+      data:
+        entity_id: var.tv_setup
+        value: 0

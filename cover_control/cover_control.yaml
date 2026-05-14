@@ -22,6 +22,9 @@ blueprint:
       cold_open_at (default 08:00) apply.
     - Open (var=0): cover is released. Motor runs only when transitioning from
       a closed mode; it does not repeat-open every 5 minutes.
+    - External lock (var=4): set by another automation (e.g. TV mode). The
+      blueprint skips ALL branches for this cover until the external automation
+      resets var to 0.
 
     Manual interrupts (stop / reverse mid-move) are respected: var is set
     BEFORE the motor command and the vent step is gated on the actual final
@@ -175,7 +178,7 @@ action:
           - condition: template
             value_template: "{{ is_state('input_boolean.cover_manage_cover_with_sun', 'on') }}"
           - condition: template
-            value_template: "{{ states(var_e) | int(default=0) != 1 }}"
+            value_template: "{{ states(var_e) | int(default=0) not in [1, 4] }}"
           - condition: template
             value_template: >
               {% set t = now().strftime('%H:%M:%S') %}
@@ -233,7 +236,7 @@ action:
           - condition: template
             value_template: "{{ enable_bedtime_close }}"
           - condition: template
-            value_template: "{{ states(var_e) | int(default=0) != 3 }}"
+            value_template: "{{ states(var_e) | int(default=0) not in [3, 4] }}"
           - condition: template
             value_template: >
               {% set t = now().strftime('%H:%M:%S') %}
@@ -264,7 +267,7 @@ action:
           - condition: template
             value_template: "{{ is_state('input_boolean.cover_manage_cover_with_sun', 'on') }}"
           - condition: template
-            value_template: "{{ states(var_e) | int(default=0) != 2 }}"
+            value_template: "{{ states(var_e) | int(default=0) not in [2, 4] }}"
           - condition: template
             value_template: >
               {% set t = now().strftime('%H:%M:%S') %}
