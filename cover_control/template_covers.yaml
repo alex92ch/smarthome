@@ -1,0 +1,1097 @@
+# Modern `template:` integration covers wrapping the Shelly Plus 2PM switch outputs.
+#
+# Included via `template: !include covers/template_covers.yaml` in configuration.yaml.
+#
+# open_cover / close_cover use the Shelly per-channel power sensor to detect when
+# the motor hits the endstop (power drops below 5 W) rather than a fixed timer.
+# A 2 s spin-up grace period prevents a false-positive immediately after turn_on.
+# A 65 s safety timeout cuts power if the sensor never updates (network glitch, etc.)
+#
+# set_cover_position stays time-based (570 ms per percent) because partial moves
+# need to stop BEFORE the endstop — power drop there would already mean overshoot.
+#
+# Wiring: Output 0 = UP (open), Output 1 = DOWN (close)
+# Named Shellys  (bathroomstoren, bedroomstoren*) use _switch_0/_switch_1
+# Unnamed Shellys (shellyplus2pm_<mac>)            use _output_0/_output_1
+# Exception: shellyplus2pm_ccdba7d08e80            uses _switch_0/_switch_1
+
+- cover:
+
+    # ------------------------------------------------------------------ #
+    # Bathroom                                                            #
+    # ------------------------------------------------------------------ #
+    - name: Bathroom Storen
+      default_entity_id: cover.bathroomstoren
+      device_class: shutter
+      position: "{{ states('input_number.bathroomstoren_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bathroomstoren_switch_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.bathroomstoren_switch_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.bathroomstoren_switch_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bathroomstoren_switch_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bathroomstoren_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bathroomstoren_switch_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.bathroomstoren_switch_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.bathroomstoren_switch_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bathroomstoren_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bathroomstoren_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bathroomstoren_switch_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bathroomstoren_switch_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.bathroomstoren_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bathroomstoren_switch_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.bathroomstoren_switch_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.bathroomstoren_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bathroomstoren_switch_0
+            - conditions: "{{ position | int < states('input_number.bathroomstoren_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bathroomstoren_switch_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.bathroomstoren_switch_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.bathroomstoren_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bathroomstoren_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bathroomstoren_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Bedroom — window                                                    #
+    # ------------------------------------------------------------------ #
+    - name: Bedroom Storen Fenster
+      default_entity_id: cover.bedroomstorenfenster
+      device_class: shutter
+      position: "{{ states('input_number.bedroomstorenfenster_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.bedroomstorenfenster_switch_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bedroomstorenfenster_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.bedroomstorenfenster_switch_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bedroomstorenfenster_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenfenster_switch_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.bedroomstorenfenster_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenfenster_switch_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.bedroomstorenfenster_switch_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.bedroomstorenfenster_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenfenster_switch_0
+            - conditions: "{{ position | int < states('input_number.bedroomstorenfenster_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenfenster_switch_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.bedroomstorenfenster_switch_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.bedroomstorenfenster_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenfenster_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bedroomstorenfenster_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Bedroom — door                                                      #
+    # ------------------------------------------------------------------ #
+    - name: Bedroom Storen Türe
+      default_entity_id: cover.bedroomstorenture
+      device_class: shutter
+      position: "{{ states('input_number.bedroomstorenture_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenture_switch_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.bedroomstorenture_switch_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.bedroomstorenture_switch_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenture_switch_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bedroomstorenture_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenture_switch_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.bedroomstorenture_switch_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.bedroomstorenture_switch_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenture_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bedroomstorenture_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenture_switch_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.bedroomstorenture_switch_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.bedroomstorenture_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenture_switch_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.bedroomstorenture_switch_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.bedroomstorenture_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenture_switch_0
+            - conditions: "{{ position | int < states('input_number.bedroomstorenture_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenture_switch_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.bedroomstorenture_switch_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.bedroomstorenture_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.bedroomstorenture_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.bedroomstorenture_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Living Room — door (80646fc86d00)                                   #
+    # ------------------------------------------------------------------ #
+    - name: Living Room Cover Door
+      default_entity_id: cover.shellyplus2pm_80646fc86d00
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fc86d00_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fc86d00_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fc86d00_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fc86d00_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fc86d00_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fc86d00_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fc86d00_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fc86d00_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fc86d00_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fc86d00_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fc86d00_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fc86d00_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Living Room — window (80646fdc35a0)                                 #
+    # ------------------------------------------------------------------ #
+    - name: Living Room Cover Window
+      default_entity_id: cover.shellyplus2pm_80646fdc35a0
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdc35a0_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdc35a0_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc35a0_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdc35a0_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc35a0_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdc35a0_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdc35a0_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdc35a0_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc35a0_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdc35a0_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc35a0_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc35a0_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Crafting Room (80646fdbbbec)                                        #
+    # ------------------------------------------------------------------ #
+    - name: Crafting Room Cover
+      default_entity_id: cover.shellyplus2pm_80646fdbbbec
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdbbbec_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbbbec_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbbbec_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbbbec_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbbbec_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdbbbec_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdbbbec_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdbbbec_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbbec_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdbbbec_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbbec_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbbbec_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Dining Room cover 1 (80646fdbbc00)                                  #
+    # ------------------------------------------------------------------ #
+    - name: Dining Room Cover 1
+      default_entity_id: cover.shellyplus2pm_80646fdbbc00
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdbbc00_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbbc00_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbbc00_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbbc00_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbbc00_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdbbc00_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdbbc00_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdbbc00_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbc00_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdbbc00_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbbc00_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbbc00_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Dining Room cover 2 (80646fdbc390)                                  #
+    # ------------------------------------------------------------------ #
+    - name: Dining Room Cover 2
+      default_entity_id: cover.shellyplus2pm_80646fdbc390
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdbc390_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbc390_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbc390_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbc390_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbc390_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdbc390_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdbc390_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdbc390_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbc390_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdbc390_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbc390_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbc390_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Kitchen (80646fdbcfd4)                                              #
+    # ------------------------------------------------------------------ #
+    - name: Kitchen Cover
+      default_entity_id: cover.shellyplus2pm_80646fdbcfd4
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdbcfd4_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbcfd4_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbcfd4_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdbcfd4_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbcfd4_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdbcfd4_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdbcfd4_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdbcfd4_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbcfd4_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdbcfd4_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdbcfd4_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdbcfd4_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Bathroom2 (80646fdc462c)                                            #
+    # ------------------------------------------------------------------ #
+    - name: Bathroom2 Cover
+      default_entity_id: cover.shellyplus2pm_80646fdc462c
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdc462c_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdc462c_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc462c_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdc462c_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc462c_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdc462c_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdc462c_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdc462c_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc462c_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdc462c_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc462c_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc462c_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Workspace Siggi (b48a0a226890)                                      #
+    # ------------------------------------------------------------------ #
+    - name: Workspace Siggi Cover
+      default_entity_id: cover.shellyplus2pm_b48a0a226890
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_b48a0a226890_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_b48a0a226890_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_b48a0a226890_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_b48a0a226890_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_b48a0a226890_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_b48a0a226890_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_b48a0a226890_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_b48a0a226890_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_b48a0a226890_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_b48a0a226890_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_b48a0a226890_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_b48a0a226890_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Bathroom1 (ccdba7d08e80) — uses _switch_ suffix                     #
+    # ------------------------------------------------------------------ #
+    - name: Bathroom1 Cover
+      default_entity_id: cover.shellyplus2pm_ccdba7d08e80
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_ccdba7d08e80_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_ccdba7d08e80_switch_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_ccdba7d08e80_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_ccdba7d08e80_switch_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_ccdba7d08e80_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_ccdba7d08e80_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_ccdba7d08e80_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_ccdba7d08e80_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_ccdba7d08e80_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_ccdba7d08e80_switch_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_ccdba7d08e80_position
+            value: "{{ position | int }}"
+
+    # ------------------------------------------------------------------ #
+    # Workspace Manu (80646fdc2030)                                       #
+    # ------------------------------------------------------------------ #
+    - name: Workspace Manu Cover
+      default_entity_id: cover.shellyplus2pm_80646fdc2030
+      device_class: shutter
+      position: "{{ states('input_number.shellyplus2pm_80646fdc2030_position') | int(0) }}"
+      open_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdc2030_output_0_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc2030_position
+            value: 100
+      close_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+        - action: switch.turn_on
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+        - delay: "00:00:02"
+        - wait_template: "{{ states('sensor.shellyplus2pm_80646fdc2030_output_1_power') | float(0) < 5 }}"
+          timeout: "00:01:05"
+          continue_on_timeout: true
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc2030_position
+            value: 0
+      stop_cover:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+        - action: switch.turn_off
+          target:
+            entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+      set_cover_position:
+        - choose:
+            - conditions: "{{ position | int > states('input_number.shellyplus2pm_80646fdc2030_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+                - delay:
+                    milliseconds: "{{ ((position | int - states('input_number.shellyplus2pm_80646fdc2030_position') | int(0)) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+            - conditions: "{{ position | int < states('input_number.shellyplus2pm_80646fdc2030_position') | int(0) }}"
+              sequence:
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc2030_output_0
+                - action: switch.turn_on
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+                - delay:
+                    milliseconds: "{{ ((states('input_number.shellyplus2pm_80646fdc2030_position') | int(0) - position | int) * 570) | int }}"
+                - action: switch.turn_off
+                  target:
+                    entity_id: switch.shellyplus2pm_80646fdc2030_output_1
+        - action: input_number.set_value
+          data:
+            entity_id: input_number.shellyplus2pm_80646fdc2030_position
+            value: "{{ position | int }}"

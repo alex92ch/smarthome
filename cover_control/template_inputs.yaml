@@ -1,0 +1,112 @@
+# Backing input_number helpers for the template covers.
+# Each stores the last-known position (0–100) of a shutter so that
+# set_cover_position can calculate proportional travel time.
+#
+# IMPORTANT after first deploy:
+#   All values default to 0 (fully closed). If a shutter is physically open
+#   you must manually update the matching input_number in HA
+#   (Developer Tools -> States -> input_number.X_position -> set value).
+
+bathroomstoren_position:
+  name: Bathroom Storen Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+bedroomstorenfenster_position:
+  name: Bedroom Storen Fenster Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+bedroomstorenture_position:
+  name: Bedroom Storen Türe Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fc86d00_position:
+  name: Living Room Cover Door Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdc35a0_position:
+  name: Living Room Cover Window Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdbbbec_position:
+  name: Crafting Room Cover Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdbbc00_position:
+  name: Dining Room Cover 1 Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdbc390_position:
+  name: Dining Room Cover 2 Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdbcfd4_position:
+  name: Kitchen Cover Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdc462c_position:
+  name: Bathroom2 Cover Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_b48a0a226890_position:
+  name: Workspace Siggi Cover Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_ccdba7d08e80_position:
+  name: Bathroom1 Cover Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
+
+shellyplus2pm_80646fdc2030_position:
+  name: Workspace Manu Cover Position
+  min: 0
+  max: 100
+  step: 1
+  initial: 0
+  mode: slider
