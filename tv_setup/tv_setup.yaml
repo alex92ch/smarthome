@@ -41,9 +41,13 @@
       after: "08:00:00"
       before: "00:00:00"
   action:
-    # Lock the two living room covers from blueprint management (var=4).
-    # The cover_control blueprint skips ALL branches while var=4 so it will
-    # not re-open them during the movie.
+    # 1) Set all locks immediately so a rapid on→playing re-trigger is blocked
+    #    before any slow I/O starts. Cover blueprint will also skip both covers
+    #    from this point on.
+    - service: var.set
+      data:
+        entity_id: var.tv_setup
+        value: 1
     - service: var.set
       data:
         entity_id: var.shellyplus2pm_80646fc86d00
@@ -53,37 +57,28 @@
         entity_id: var.shellyplus2pm_80646fdc35a0
         value: 4
 
-    # Close the living room covers
-    - service: cover.close_cover
-      target:
-        entity_id: cover.shellyplus2pm_80646fc86d00
-    - service: cover.close_cover
-      target:
-        entity_id: cover.shellyplus2pm_80646fdc35a0
-
-    # Turn off the ambient socket / plug near the TV
-    # Verify entity ID: switch.shelly1minig4_ccba97c02d40 in Developer Tools → States
-    - service: switch.turn_off
-      target:
-        entity_id: switch.shelly1minig4_ccba97c02d40
-
-    # Turn on the secondary light (Light2)
-    - service: switch.turn_on
-      target:
-        entity_id: switch.shellyplus1_a8032ab68f68_switch_0
-
-    # Enable Dyson night mode (quiet fan during TV time)
-    # Verify entity ID: search "night_mode" in Developer Tools → States
-    - service: switch.turn_on
-      target:
-        entity_id: switch.flur_night_mode
-
-    # Mark TV session as active — prevents this automation from re-running
-    # if a second trigger fires (e.g. TV switches from "on" to "playing")
-    - service: var.set
-      data:
-        entity_id: var.tv_setup
-        value: 1
+    # 2) Fire all slow / I/O-bound steps in parallel so lights and Dyson switch
+    #    on immediately while covers travel (~57 s) in the background.
+    - parallel:
+        # Close the living room covers (slow — runs in background)
+        - service: cover.close_cover
+          target:
+            entity_id: cover.shellyplus2pm_80646fc86d00
+        - service: cover.close_cover
+          target:
+            entity_id: cover.shellyplus2pm_80646fdc35a0
+        # Turn off the ambient socket / plug near the TV
+        - service: switch.turn_off
+          target:
+            entity_id: switch.shelly1minig4_ccba97c02d40
+        # Turn on the secondary light (Light2)
+        - service: switch.turn_on
+          target:
+            entity_id: switch.shellyplus1_a8032ab68f68_switch_0
+        # Enable Dyson night mode (quiet fan during TV time)
+        - service: switch.turn_on
+          target:
+            entity_id: switch.flur_night_mode
 
 - id: tv_setup_off
   alias: tv_setup_off

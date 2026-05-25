@@ -13,13 +13,15 @@ blueprint:
       configured bedtime window REGARDLESS of temperature or sun. Prevents
       being woken by a morning hot-mode motor run (summer) and keeps heat in
       overnight (winter). Overrides hot and cold while active.
-    - Cold mode (var=2): one evening decision, one morning release — no
+    - Cold mode (var=2): one evening decision, sun-driven morning release — no
       overnight re-evaluation. At the first 5-minute tick after effective_close_at
-      the shutter closes fully if temp < cold_threshold. At effective_open_at it
-      always opens unconditionally. For bedrooms effective_close_at/open_at
-      automatically follow bedtime_close_at/open_at so only one schedule is
-      configured. For all other rooms cold_close_at (default 22:00) and
-      cold_open_at (default 08:00) apply.
+      the shutter closes if temp < cold_threshold (fully, or to vent_position for
+      plant rooms). It stays closed until the sun actually hits the window the
+      next day (same azimuth + elevation as hot close, mirrored to open instead
+      of close). On cloudy days or windows that never see direct sun the shutter
+      remains closed until the sun hits on a later day. For bedrooms
+      effective_close_at automatically follows bedtime_close_at so only one
+      schedule is needed. For all other rooms cold_close_at (default 22:00) applies.
     - Open (var=0): cover is released. Motor runs only when transitioning from
       a closed mode; it does not repeat-open every 5 minutes.
     - External lock (var=4): set by another automation (e.g. TV mode). The
@@ -133,8 +135,11 @@ blueprint:
       selector:
         time:
     cold_open_at:
-      name: Cold open time
-      description: Morning time at which cold-locked covers are unconditionally opened for non-bedroom covers. Ignored when enable_bedtime_close is true.
+      name: Cold open time (DEPRECATED)
+      description: >
+        No longer used. Cold-locked covers now open when the sun hits the window
+        (same azimuth + elevation as hot close, mirrored to open). Kept here for
+        backwards compatibility so existing blueprint instances do not break.
       default: "08:00:00"
       selector:
         time:
@@ -154,13 +159,10 @@ variables:
   bedtime_close_at: !input bedtime_close_at
   bedtime_open_at: !input bedtime_open_at
   cold_close_at: !input cold_close_at
-  cold_open_at: !input cold_open_at
-  # When bedtime is enabled the cold night envelope uses the same times as bedtime
-  # so bedroom covers only need one schedule configured.
+  # When bedtime is enabled the cold-close time checkpoint uses the same time as
+  # bedtime so bedroom covers only need one schedule configured.
   effective_close_at: >
     {{ bedtime_close_at if enable_bedtime_close else cold_close_at }}
-  effective_open_at: >
-    {{ bedtime_open_at if enable_bedtime_close else cold_open_at }}
 
 mode: parallel
 
@@ -178,13 +180,12 @@ action:
           - condition: template
             value_template: "{{ is_state('input_boolean.cover_manage_cover_with_sun', 'on') }}"
           - condition: template
-            value_template: "{{ states(var_e) | int(default=0) not in [1, 4] }}"
+            value_template: "{{ states(var_e) | int(default=0) not in [1, 2, 4] }}"
           - condition: template
             value_template: >
               {% set t = now().strftime('%H:%M:%S') %}
               {% set bedtime_active = enable_bedtime_close and (t >= bedtime_close_at or t < bedtime_open_at) %}
-              {% set cold_window_active = t >= effective_close_at or t < effective_open_at %}
-              {{ not bedtime_active and not cold_window_active }}
+              {{ not bedtime_active }}
           - condition: template
             value_template: "{{ state_attr(temperature_service, 'temperature') | float(default=15) > hot_threshold }}"
           - condition: template
@@ -288,32 +289,53 @@ action:
             data:
               entity_id: '{{ var_e }}'
               value: 2
-          - service: cover.close_cover
-            data:
-              entity_id: '{{ cover_e }}'
-          - wait_template: >
-              {{ states(cover_e) == 'closed'
-                 or (state_attr(cover_e, 'current_position') | int(default=100)) == 0 }}
-            timeout: "00:02:00"
-            continue_on_timeout: true
-          - delay:
-              seconds: 2
+          - choose:
+              # Vent-rooms: close to vent_position only — plants keep light through the slits.
+              - conditions:
+                  - condition: template
+                    value_template: "{{ enable_vent_position }}"
+                sequence:
+                  - service: cover.set_cover_position
+                    target:
+                      entity_id: '{{ cover_e }}'
+                    data:
+                      position: "{{ vent_position | int }}"
+            default:
+              - service: cover.close_cover
+                data:
+                  entity_id: '{{ cover_e }}'
+              - wait_template: >
+                  {{ states(cover_e) == 'closed'
+                     or (state_attr(cover_e, 'current_position') | int(default=100)) == 0 }}
+                timeout: "00:02:00"
+                continue_on_timeout: true
+              - delay:
+                  seconds: 2
 
       ##########################################################
-      # release cold lock - cold release (var=2 → 0)
-      # Fires unconditionally at effective_open_at regardless of temperature.
-      # Evaluated before the generic open branch so var=2 is always handled here.
+      # release cold lock - sun-driven (mirror of hot close, var=2 → 0)
+      # Fires when the sun actually hits the window (same azimuth + elevation
+      # conditions as hot close but opens instead of closes).
+      # No fixed morning time — cold-locked covers stay closed on cloudy days
+      # or windows that never see direct sun. Bedtime window still suppresses
+      # the open to avoid motor noise at night.
       ##########################################################
       - conditions:
           - condition: template
             value_template: "{{ is_state('input_boolean.cover_manage_cover_with_sun', 'on') }}"
           - condition: template
             value_template: "{{ states(var_e) | int(default=0) == 2 }}"
-          # Outside the cold window (i.e. effective_open_at has passed)
           - condition: template
             value_template: >
               {% set t = now().strftime('%H:%M:%S') %}
-              {{ t >= effective_open_at and t < effective_close_at }}
+              {% set bedtime_active = enable_bedtime_close
+                   and (t >= bedtime_close_at or t < bedtime_open_at) %}
+              {{ not bedtime_active }}
+          - condition: template
+            value_template: >
+              {{ state_attr('sun.sun', 'azimuth') > protection_begin
+                and state_attr('sun.sun', 'azimuth') < protection_end
+                and state_attr('sun.sun', 'elevation') > elevation_begin }}
         sequence:
           - service: var.set
             data:
@@ -341,9 +363,8 @@ action:
                   and state_attr('sun.sun', 'elevation') > elevation_begin %}
               {% set t = now().strftime('%H:%M:%S') %}
               {% set bedtime_active = enable_bedtime_close and (t >= bedtime_close_at or t < bedtime_open_at) %}
-              {% set cold_window_active = t >= effective_close_at or t < effective_open_at %}
               {% set hot_close = is_hot and sun_hit %}
-              {{ not hot_close and not bedtime_active and not cold_window_active }}
+              {{ not hot_close and not bedtime_active }}
         sequence:
           - service: var.set
             data:
