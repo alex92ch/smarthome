@@ -134,15 +134,6 @@ blueprint:
       default: "22:00:00"
       selector:
         time:
-    cold_open_at:
-      name: Cold open time (DEPRECATED)
-      description: >
-        No longer used. Cold-locked covers now open when the sun hits the window
-        (same azimuth + elevation as hot close, mirrored to open). Kept here for
-        backwards compatibility so existing blueprint instances do not break.
-      default: "08:00:00"
-      selector:
-        time:
 
 variables:
   cover_e: !input cover_entity
